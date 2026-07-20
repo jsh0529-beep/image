@@ -6,6 +6,30 @@
 <meta name="color-scheme" content="light">
 <meta name="supported-color-schemes" content="light">
 <title>이미지메이킹 스테이지</title>
+
+<!-- ── 카카오톡·SNS 공유 미리보기 ────────────────────────────────
+     주소를 바꾸려면 아래 https://jsh0529-beep.github.io/image 부분을
+     새 주소로 모두 고치면 됩니다. cover.png·icon.png 도 같은 폴더에
+     함께 올려야 썸네일이 보입니다.
+-->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="영남이공대학교 모델테이너과">
+<meta property="og:title" content="「이미지메이킹」 스테이지">
+<meta property="og:description" content="교재 15장 · 훈련 타이머 · 퀴즈 · 나만의 이미지 기획안. 휴대폰으로 언제든 학습하세요.">
+<meta property="og:image" content="https://jsh0529-beep.github.io/image/cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="https://jsh0529-beep.github.io/image/">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="description" content="영남이공대학교 모델테이너과 「이미지메이킹」 학습 앱. 교재 15장, 훈련 타이머, 퀴즈, 나만의 이미지 기획안.">
+
+<!-- 홈 화면 아이콘 -->
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="이미지메이킹">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#FFFCF5">
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{background:#FFFCF5;-webkit-text-size-adjust:100%}
@@ -155,6 +179,8 @@ p{color:#3D3548}
   border-radius:13px;padding:15px;color:#2B2434}
 .mission{background:#FDF6E6;border-color:#E4D2A6}
 .mission h3{color:#8A6410}
+.code{background:#F5EFE2;border:1px solid #E4DCCE;border-radius:11px;padding:11px 13px;margin-bottom:9px;
+  font-size:14px;line-height:1.55;color:#2B2434;word-break:break-all;-webkit-user-select:all;user-select:all}
 
 .tabbar{position:fixed;left:0;right:0;bottom:0;display:flex;background:#FFFFFF;
   border-top:1px solid #E4DCCE;padding-bottom:env(safe-area-inset-bottom);z-index:20;
@@ -174,9 +200,45 @@ p{color:#3D3548}
 <div class="toast" id="toast"></div>
 
 <script>
+/* ══════════════════════════════════════════════════════════
+   서버 설정 — 배포 전 이 두 줄만 고치면 됩니다
+   ══════════════════════════════════════════════════════════
+   API_URL : Google Apps Script 웹 앱 주소(.../exec)를 따옴표 안에 붙여 넣으세요.
+             비워 두면 서버 없이 '제출 코드' 방식으로 동작합니다.
+   TEACHER_CODE : 교수용 화면 접속 코드
+*/
+const API_URL='https://script.google.com/macros/s/AKfycbxSIizajTeeytHMFTAd61Yy6UPko47g7-ac4ypvmlchsRamEu6mOsE-chIa9957POc2/exec';
+const TEACHER_CODE='yn2026';
+
+async function apiCall(payload){
+  if(!API_URL)throw new Error('no-api');
+  const r=await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(payload)});
+  if(!r.ok)throw new Error('http '+r.status);
+  const j=await r.json();
+  if(!j.ok)throw new Error(j.error||'server error');
+  return j;
+}
+
 const mem={};
-async function sget(k){try{const r=await window.storage.get(k);return r?JSON.parse(r.value):(mem[k]??null)}catch(e){return mem[k]??null}}
-async function sset(k,v){mem[k]=v;try{await window.storage.set(k,JSON.stringify(v))}catch(e){}}
+const HAS_WS=(typeof window!=='undefined'&&window.storage&&typeof window.storage.get==='function');
+function lsGet(k){try{const v=localStorage.getItem(k);return v?JSON.parse(v):null}catch(e){return null}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}
+async function sget(k){
+  if(HAS_WS){try{const r=await window.storage.get(k);if(r)return JSON.parse(r.value)}catch(e){}}
+  const l=lsGet(k);if(l!==null)return l;
+  return mem[k]??null;
+}
+async function sset(k,v){
+  mem[k]=v;lsSet(k,v);
+  if(HAS_WS){try{await window.storage.set(k,JSON.stringify(v))}catch(e){}}
+}
+function copyText(t){
+  const a=document.createElement('textarea');a.value=t;a.style.position='fixed';a.style.opacity='0';
+  document.body.appendChild(a);a.select();
+  let ok=false;try{ok=document.execCommand('copy')}catch(e){}
+  document.body.removeChild(a);return ok;
+}
 let S={diag:{},ws:{},chk:{},quiz:{done:0,right:0,wrong:[]},train:{},profile:{}};
 async function load(){const d=await sget('img:state');if(d)S=Object.assign(S,d)}
 let saveT;function save(){clearTimeout(saveT);saveT=setTimeout(()=>sset('img:state',S),350)}
@@ -862,8 +924,12 @@ function me(){
     <p style="font-size:14.5px;margin:0 0 10px">이름·학번과 진도 요약만 전달됩니다. <b style="color:#186A4E">워크시트에 쓴 내용은 전송되지 않습니다.</b></p>
     <input class="inp" id="pn" placeholder="이름" value="${esc(pf.name||'')}">
     <input class="inp" id="ps" placeholder="학번" value="${esc(pf.sid||'')}">
-    <button class="btn sm" onclick="submitProg()">진도 제출하기</button>
-    ${pf.last?`<p style="margin:6px 0 0;font-size:14px">마지막 제출 · ${esc(pf.last)}</p>`:''}</div>
+    <button class="btn sm" id="subbtn" onclick="submitProg()">진도 제출하기</button>
+    ${pf.last&&pf.sent?`<p style="margin:8px 0 0;font-size:14.5px;color:#186A4E;font-weight:700">✓ 제출 완료 · ${esc(pf.last)}</p>`:''}
+    ${pf.code&&!pf.sent?`<p style="margin:10px 0 6px;font-size:14.5px;font-weight:700">제출 코드 · 이 줄을 교수님께 보내세요</p>
+      <div class="code">${esc(pf.code)}</div>
+      <button class="btn ghost sm" onclick="copyCode()">제출 코드 복사</button>
+      <p style="margin:4px 0 0;font-size:13.5px">복사한 코드를 카카오톡·문자로 보내면 됩니다. 마지막 시도 · ${esc(pf.last||'')}</p>`:''}</div>
     <button class="btn ghost sm" onclick="profGate()">교수용 화면</button>
     <button class="btn ghost sm" onclick="resetAll()">모든 기록 지우기</button>
     <div style="height:22px"></div></div>`;
@@ -906,55 +972,86 @@ function resetAll(){
   S={diag:{},ws:{},chk:{},quiz:{done:0,right:0,wrong:[]},train:{},profile:{}};save();render();toast('기록을 모두 지웠습니다');
 }
 
-let PROF={rows:null,loading:false};
+let PROF={rows:null,loading:false,err:''};
+let CLASS=[];
+async function loadClass(){const l=await sget('img:classlist');CLASS=Array.isArray(l)?l:[]}
 function profGate(){
   const c=prompt('교수용 코드를 입력하세요');
   if(c===null)return;
-  if(c.trim().toLowerCase()!=='yn2026'){toast('코드가 맞지 않습니다');return}
+  if(c.trim()!==TEACHER_CODE){toast('코드가 맞지 않습니다');return}
   view.tab='prof';PROF.rows=null;render();loadProf();
 }
-async function submitProg(){
-  const n=($('pn').value||'').trim(),s=($('ps').value||'').trim();
-  if(!n||!s){toast('이름과 학번을 입력해 주세요');return}
-  const dt=new Date();
-  const now=`${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
-  S.profile={name:n,sid:s,last:now};save();
-  const rec={n:n,sid:s,p:progress(),ch:CH.filter(c=>chDone(c.n)).length,ws:wsCount(),
-    q:S.quiz.done?Math.round(S.quiz.right/S.quiz.done*100):0,qd:S.quiz.done,t:now};
-  const key='class:'+s.replace(/[^0-9A-Za-z가-힣_-]/g,'').slice(0,40);
-  try{await window.storage.set(key,JSON.stringify(rec),true);toast('진도를 제출했습니다')}
-  catch(e){toast('제출에 실패했습니다. 잠시 후 다시 시도하세요')}
+function addCodes(){
+  const box=$('pastebox');if(!box)return;
+  const txt=box.value||'';let added=0;
+  txt.split(/[\n\r]+/).forEach(line=>{
+    const p=line.trim().split('|');
+    if(p[0]!=='IMG'||p.length<9)return;
+    const rec={n:p[1],sid:p[2],p:parseInt(p[3])||0,ch:parseInt(p[4])||0,ws:parseInt(p[5])||0,
+      qd:parseInt(p[6])||0,q:parseInt(p[7])||0,t:p[8]};
+    const i=CLASS.findIndex(x=>x.sid===rec.sid);
+    if(i>=0)CLASS[i]=rec;else CLASS.push(rec);
+    added++;
+  });
+  sset('img:classlist',CLASS);
+  box.value='';
+  toast(added?`${added}명 등록했습니다`:'인식된 코드가 없습니다');
   render();
 }
+function clearClass(){
+  if(!confirm('등록한 학생 명단을 모두 지웁니다.'))return;
+  CLASS=[];sset('img:classlist',CLASS);render();toast('명단을 지웠습니다');
+}
 async function loadProf(){
-  PROF.loading=true;render();
+  PROF.loading=true;PROF.err='';render();
   const rows=[];
-  try{
-    const r=await window.storage.list('class:',true);
-    const keys=(r&&r.keys)?r.keys:[];
-    for(const k of keys){
-      const key=(typeof k==='string')?k:(k&&k.key);
-      if(!key)continue;
-      try{const v=await window.storage.get(key,true);if(v)rows.push(JSON.parse(v.value))}catch(e){}
-    }
-    PROF.rows=rows.sort((a,b)=>(b.p||0)-(a.p||0));
-  }catch(e){PROF.rows=[]}
-  PROF.loading=false;render();
+  if(API_URL){
+    try{
+      const j=await apiCall({action:'roster',code:TEACHER_CODE});
+      (j.rows||[]).forEach(r=>rows.push(r));
+    }catch(e){PROF.err='서버에서 명단을 불러오지 못했습니다. 인터넷 연결과 배포 주소를 확인해 주세요.'}
+  }
+  if(HAS_WS){
+    try{
+      const r=await window.storage.list('class:',true);
+      const keys=(r&&r.keys)?r.keys:[];
+      for(const k of keys){
+        const key=(typeof k==='string')?k:(k&&k.key);
+        if(!key)continue;
+        try{const v=await window.storage.get(key,true);if(v)rows.push(JSON.parse(v.value))}catch(e){}
+      }
+    }catch(e){}
+  }
+  PROF.rows=rows;PROF.loading=false;render();
+}
+function mergedRows(){
+  const map={};
+  (PROF.rows||[]).forEach(r=>{if(r&&r.sid)map[r.sid]=r});
+  CLASS.forEach(r=>{if(r&&r.sid)map[r.sid]=r});
+  return Object.keys(map).map(k=>map[k]).sort((a,b)=>(b.p||0)-(a.p||0));
 }
 function prof(){
+  const rows=mergedRows();
   let h=`<div class="wrap"><div class="backbar"><button onclick="go('me')">‹ 나가기</button><span>교수용</span></div>
     <h1 style="font-size:24px;font-weight:800">학생 진도 현황</h1>
-    <p style="font-size:15px;margin:5px 0 14px">학생이 '진도 제출하기'를 누른 기록만 표시됩니다.</p>`;
+    <p style="font-size:15px;margin:5px 0 10px">${API_URL?'학생이 제출하면 구글 시트에 저장되고 여기에 자동으로 표시됩니다.':'서버 주소가 설정되지 않아 제출 코드 방식으로 동작합니다.'}</p>
+    <div class="card" style="background:${API_URL?'#E8F5EF':'#FDF6E6'};border-color:${API_URL?'#B7E0CE':'#E4D2A6'}">
+      <p style="font-size:14.5px;font-weight:700;color:${API_URL?'#186A4E':'#8A6410'};margin:0">
+        ${API_URL?'● 서버 연결됨 — 자동 수집':'● 서버 미설정 — 코드 수동 등록'}</p></div>
+    ${PROF.err?`<div class="card" style="background:#FCEEED;border-color:#EFC7C4"><p style="font-size:14.5px;color:#B3322C;margin:0">${esc(PROF.err)}</p></div>`:''}
+    <div class="card"><h3>제출 코드 붙여넣기</h3>
+      <p style="font-size:14.5px;margin:0 0 8px">카카오톡으로 받은 코드를 여러 줄 한꺼번에 붙여 넣어도 됩니다. 같은 학번은 최신 것으로 갱신됩니다.</p>
+      <textarea class="inp" id="pastebox" style="min-height:96px;line-height:1.5" placeholder="IMG|홍길동|20250101|60|9|24|30|80|7/19 14:20"></textarea>
+      <button class="btn sm" onclick="addCodes()">명단에 등록하기</button></div>`;
   if(PROF.loading)h+=`<div class="empty">불러오는 중…</div>`;
-  else if(!PROF.rows)h+=`<div class="empty">아래 버튼으로 현황을 불러오세요.</div>`;
-  else if(!PROF.rows.length)h+=`<div class="empty">아직 제출한 학생이 없습니다.<br>학생에게 '나 → 진도 제출하기'를 안내해 주세요.</div>`;
+  else if(!rows.length)h+=`<div class="empty">아직 등록된 학생이 없습니다.<br>학생에게 '나 → 진도 제출하기 → 제출 코드 복사'를 안내해 주세요.</div>`;
   else{
-    const n=PROF.rows.length,avg=Math.round(PROF.rows.reduce((a,b)=>a+(b.p||0),0)/n),fin=PROF.rows.filter(r=>(r.p||0)>=100).length;
-    h+=`<div class="stat"><div><b class="num">${n}</b><small>제출 인원</small></div>
+    const n=rows.length,avg=Math.round(rows.reduce((a,b)=>a+(b.p||0),0)/n),fin=rows.filter(r=>(r.p||0)>=100).length;
+    h+=`<div class="stat"><div><b class="num">${n}</b><small>등록 인원</small></div>
       <div><b class="num">${avg}<span style="font-size:14px">%</span></b><small>평균 진도</small></div>
       <div><b class="num">${fin}</b><small>전 과정 완료</small></div></div>`;
     h+=`<div class="card" style="padding:6px 16px">`;
-    PROF.rows.forEach(r=>{
+    rows.forEach(r=>{
       h+=`<div style="padding:13px 0;border-bottom:1px solid #EFE8DC">
         <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
           <b style="font-size:16px">${esc(r.n||'')} <span style="color:#6B6175;font-weight:500;font-size:14px">${esc(r.sid||'')}</span></b>
@@ -963,12 +1060,49 @@ function prof(){
         <div style="font-size:13px;color:#6B6175">${r.ch||0}장 완료 · 워크시트 ${r.ws||0}개 · 퀴즈 ${r.qd||0}문항 정답률 ${r.q||0}% · ${esc(r.t||'')}</div>
       </div>`;
     });
-    h+=`</div>`;
+    h+=`</div><button class="btn ghost sm" onclick="copyRoster()">명단 전체 복사</button>
+      <button class="btn ghost sm" onclick="clearClass()">명단 지우기</button>`;
   }
-  h+=`<button class="btn" onclick="loadProf()">현황 새로고침</button>
-    <div class="card"><h3>안내</h3><p>학생의 워크시트 내용과 자기 진단 응답은 전송되지 않습니다. 신체·외모에 관한 개인 성찰은 학생 기기에만 저장됩니다.</p></div>
+  h+=`<div class="card"><h3>안내</h3><p>학생의 워크시트 내용과 자기 진단 응답은 전송되지 않습니다. 신체·외모에 관한 개인 성찰은 학생 기기에만 저장됩니다.</p></div>
     <div style="height:22px"></div></div>`;
   return h;
+}
+function copyRoster(){
+  const rows=mergedRows();
+  if(!rows.length){toast('등록된 학생이 없습니다');return}
+  const t=['이름\t학번\t진도(%)\t완료 장\t워크시트\t퀴즈 문항\t정답률(%)\t제출']
+    .concat(rows.map(r=>[r.n,r.sid,r.p,r.ch,r.ws,r.qd,r.q,r.t].join('\t'))).join('\n');
+  toast(copyText(t)?'명단을 복사했습니다. 엑셀에 붙여 넣으세요':'복사에 실패했습니다');
+}
+function makeCode(r){return ['IMG',r.n,r.sid,r.p,r.ch,r.ws,r.qd,r.q,r.t].join('|')}
+async function submitProg(){
+  const n=($('pn').value||'').trim(),s=($('ps').value||'').trim();
+  if(!n||!s){toast('이름과 학번을 입력해 주세요');return}
+  const dt=new Date();
+  const now=`${dt.getMonth()+1}/${dt.getDate()} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
+  const rec={n:n,sid:s,p:progress(),ch:CH.filter(c=>chDone(c.n)).length,ws:wsCount(),
+    q:S.quiz.done?Math.round(S.quiz.right/S.quiz.done*100):0,qd:S.quiz.done,t:now};
+  const code=makeCode(rec);
+  S.profile={name:n,sid:s,last:now,code:code};save();
+  let sent=false;
+  if(API_URL){
+    const btn=$('subbtn');if(btn){btn.textContent='제출하는 중…';btn.disabled=true}
+    try{await apiCall(Object.assign({action:'submit'},rec));sent=true}catch(e){}
+    if(btn){btn.disabled=false}
+  }
+  if(!sent&&HAS_WS){
+    const key='class:'+s.replace(/[^0-9A-Za-z가-힣_-]/g,'').slice(0,40);
+    try{await window.storage.set(key,JSON.stringify(rec),true);sent=true}catch(e){}
+  }
+  S.profile.sent=sent;save();
+  if(sent)toast('진도를 제출했습니다');
+  else toast(copyText(code)?'서버 연결 실패 · 제출 코드를 복사했습니다':'제출 코드를 만들었습니다');
+  render();
+}
+function copyCode(){
+  const c=(S.profile||{}).code;
+  if(!c){toast('먼저 진도를 제출해 주세요');return}
+  toast(copyText(c)?'제출 코드를 복사했습니다':'길게 눌러 직접 복사해 주세요');
 }
 
 function saveWs(k,v){S.ws[k]=v;save();const el=$('sv_'+k);if(el){el.textContent='저장됨';clearTimeout(el._t);el._t=setTimeout(()=>el.textContent='',1200)}}
@@ -991,7 +1125,7 @@ function render(){
   $('tabbar').innerHTML=TABS.map(t=>`<button class="${view.tab===t[0]?'on':''}" onclick="go('${t[0]}')"><span class="ic">${t[1]}</span>${t[2]}</button>`).join('');
   if(view.train)updT();
 }
-(async()=>{await load();render()})();
+(async()=>{await load();await loadClass();render()})();
 </script>
 </body>
 </html>
